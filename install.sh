@@ -42,6 +42,9 @@ CPU_USAGE=\$(top -b -n1 | grep "Cpu(s)" | awk '{print \$2 + \$4}')
 RAM_USAGE=\$(free -h | grep Mem | awk '{print \$3 "/" \$2}')
 DISK_USAGE=\$(df -h | grep '/\$' | awk '{print \$3 "/" \$2 " (" \$5 ")"}')
 
+# Menambahkan uptime server
+UPTIME=\$(uptime -p) # Waktu server sudah berjalan
+
 # Layanan yang akan diperiksa
 SERVICES=(${SERVICES[@]})
 
@@ -66,6 +69,7 @@ MESSAGE="🔔 *Server Monitoring Report*
 📊 CPU Usage: \${CPU_USAGE}%
 📈 RAM Usage: \${RAM_USAGE}
 💾 Disk Usage: \${DISK_USAGE}
+⏳ Uptime: \${UPTIME}
 
 🛠️ *Service Status*:
 \${SERVICE_STATUS}"
