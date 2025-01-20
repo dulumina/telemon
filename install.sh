@@ -13,9 +13,19 @@ read -p "Masukkan Telegram BOT_TOKEN: " BOT_TOKEN
 read -p "Masukkan Telegram CHAT_ID: " CHAT_ID
 read -p "Masukkan layanan yang akan dimonitor (pisahkan dengan spasi, contoh: nginx apache2 php5.6): " -a SERVICES
 
-# Buat file script monitoring
+# Tentukan path untuk script monitoring
 SCRIPT_PATH="/usr/local/bin/monitoring.sh"
 
+# Jika script sudah ada, beri konfirmasi untuk menimpanya
+if [[ -f "$SCRIPT_PATH" ]]; then
+  read -p "Script monitoring sudah ada, apakah Anda ingin menimpanya? (y/n): " CONFIRM
+  if [[ "$CONFIRM" != "y" ]]; then
+    echo "⚠️ Instalasi dibatalkan."
+    exit 1
+  fi
+fi
+
+# Buat file script monitoring
 cat <<EOF > "$SCRIPT_PATH"
 #!/bin/bash
 
@@ -31,9 +41,6 @@ IP_ADDRESS=\$(hostname -I | awk '{print \$1}') # Mengambil IP pertama dari dafta
 CPU_USAGE=\$(top -b -n1 | grep "Cpu(s)" | awk '{print \$2 + \$4}')
 RAM_USAGE=\$(free -h | grep Mem | awk '{print \$3 "/" \$2}')
 DISK_USAGE=\$(df -h | grep '/\$' | awk '{print \$3 "/" \$2 " (" \$5 ")"}')
-
-# Menambahkan uptime server
-UPTIME=\$(uptime -p) # Waktu server sudah berjalan
 
 # Layanan yang akan diperiksa
 SERVICES=(${SERVICES[@]})
@@ -59,7 +66,6 @@ MESSAGE="🔔 *Server Monitoring Report*
 📊 CPU Usage: \${CPU_USAGE}%
 📈 RAM Usage: \${RAM_USAGE}
 💾 Disk Usage: \${DISK_USAGE}
-⏳ Uptime: \${UPTIME}
 
 🛠️ *Service Status*:
 \${SERVICE_STATUS}"
@@ -76,15 +82,30 @@ chmod +x "$SCRIPT_PATH"
 
 echo "✅ Script monitoring telah dibuat di $SCRIPT_PATH"
 
-# Prompt untuk membuat cronjob
-read -p "Masukkan waktu eksekusi script (contoh: '*/5 * * * *' untuk setiap 5 menit, tekan Enter untuk melewati): " CRON_TIME
+# Cek apakah ada cronjob yang sudah ada
+CRON_JOB_EXIST=$(crontab -l | grep "$SCRIPT_PATH")
 
-if [[ -n "$CRON_TIME" ]]; then
-  # Tambahkan cronjob jika waktu diberikan
-  (crontab -l 2>/dev/null; echo "$CRON_TIME bash $SCRIPT_PATH") | crontab -
-  echo "✅ Cronjob telah ditambahkan: $CRON_TIME bash $SCRIPT_PATH"
+if [[ -n "$CRON_JOB_EXIST" ]]; then
+  # Jika cronjob sudah ada, beri pilihan kepada user untuk menggantinya atau menggunakan yang lama
+  read -p "Cronjob untuk script monitoring sudah ada. Apakah Anda ingin mengubahnya? (y/n): " USE_EXISTING_CRON
+  if [[ "$USE_EXISTING_CRON" == "y" ]]; then
+    read -p "Masukkan waktu eksekusi cronjob (contoh: '*/5 * * * *' untuk setiap 5 menit): " CRON_TIME
+    # Hapus cronjob lama dan tambah cronjob baru
+    crontab -l | grep -v "$SCRIPT_PATH" | crontab -
+    (crontab -l 2>/dev/null; echo "$CRON_TIME bash $SCRIPT_PATH") | crontab -
+    echo "✅ Cronjob baru telah ditambahkan: $CRON_TIME bash $SCRIPT_PATH"
+  else
+    echo "ℹ️ Menggunakan cronjob yang lama."
+  fi
 else
-  echo "ℹ️ Tidak ada cronjob yang dibuat."
+  # Jika cronjob belum ada, prompt untuk menambahkan cronjob baru
+  read -p "Masukkan waktu eksekusi cronjob (contoh: '*/5 * * * *' untuk setiap 5 menit, tekan Enter untuk melewati): " CRON_TIME
+  if [[ -n "$CRON_TIME" ]]; then
+    (crontab -l 2>/dev/null; echo "$CRON_TIME bash $SCRIPT_PATH") | crontab -
+    echo "✅ Cronjob telah ditambahkan: $CRON_TIME bash $SCRIPT_PATH"
+  else
+    echo "ℹ️ Tidak ada cronjob yang dibuat."
+  fi
 fi
 
 echo "🚀 Instalasi selesai! Monitoring script telah diatur."
