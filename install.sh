@@ -48,7 +48,17 @@ UPTIME=\$(uptime -p) # Waktu server sudah berjalan
 # Layanan yang akan diperiksa
 SERVICES=(${SERVICES[@]})
 
-# Fungsi untuk memeriksa status layanan
+# Fungsi untuk memeriksa status layanan Docker
+check_docker_status() {
+    CONTAINERS=\$(docker ps --format "{{.Names}} {{.Status}}")
+    CONTAINER_STATUS=""
+    while IFS= read -r CONTAINER; do
+        CONTAINER_STATUS+="\${CONTAINER}\n"
+    done <<< "\$CONTAINERS"
+    echo -e "\$CONTAINER_STATUS"
+}
+
+# Fungsi untuk memeriksa status layanan lainnya
 check_service() {
     systemctl is-active --quiet "\$1" && echo "✅ \$1: Active" || echo "❌ \$1: Inactive"
 }
@@ -56,7 +66,11 @@ check_service() {
 # Loop untuk memeriksa semua layanan dalam array
 SERVICE_STATUS=""
 for SERVICE in "\${SERVICES[@]}"; do
-    SERVICE_STATUS+=\$(check_service "\$SERVICE")
+    if [[ "\$SERVICE" == "docker" ]]; then
+        SERVICE_STATUS+=\$(check_docker_status)
+    else
+        SERVICE_STATUS+=\$(check_service "\$SERVICE")
+    fi
     SERVICE_STATUS+=\$'\\n' # Tambahkan newline literal
 done
 
