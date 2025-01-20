@@ -25,6 +25,14 @@ if [[ -f "$SCRIPT_PATH" ]]; then
   fi
 fi
 
+# Validasi layanan yang dimasukkan
+for SERVICE in "${SERVICES[@]}"; do
+  if ! systemctl list-units --type=service --all | grep -q "$SERVICE"; then
+    echo "⚠️ Layanan '$SERVICE' tidak ditemukan di sistem. Pastikan nama layanan benar."
+    exit 1
+  fi
+done
+
 # Buat file script monitoring
 cat <<EOF > "$SCRIPT_PATH"
 #!/bin/bash
@@ -108,6 +116,10 @@ if [[ -n "$CRON_JOB_EXIST" ]]; then
   read -p "Cronjob untuk script monitoring sudah ada. Apakah Anda ingin mengubahnya? (y/n): " USE_EXISTING_CRON
   if [[ "$USE_EXISTING_CRON" == "y" ]]; then
     read -p "Masukkan waktu eksekusi cronjob (contoh: '*/5 * * * *' untuk setiap 5 menit): " CRON_TIME
+    if [[ ! "$CRON_TIME" =~ ^([0-9]{1,2}|\*)\s([0-9]{1,2}|\*)\s([0-9]{1,2}|\*)\s([0-9]{1,2}|\*)\s([0-9]{1,2}|\*)$ ]]; then
+      echo "⚠️ Format waktu cronjob tidak valid!"
+      exit 1
+    fi
     # Hapus cronjob lama dan tambah cronjob baru
     crontab -l | grep -v "$SCRIPT_PATH" | crontab -
     (crontab -l 2>/dev/null; echo "$CRON_TIME bash $SCRIPT_PATH") | crontab -
@@ -119,6 +131,10 @@ else
   # Jika cronjob belum ada, prompt untuk menambahkan cronjob baru
   read -p "Masukkan waktu eksekusi cronjob (contoh: '*/5 * * * *' untuk setiap 5 menit, tekan Enter untuk melewati): " CRON_TIME
   if [[ -n "$CRON_TIME" ]]; then
+    if [[ ! "$CRON_TIME" =~ ^([0-9]{1,2}|\*)\s([0-9]{1,2}|\*)\s([0-9]{1,2}|\*)\s([0-9]{1,2}|\*)\s([0-9]{1,2}|\*)$ ]]; then
+      echo "⚠️ Format waktu cronjob tidak valid!"
+      exit 1
+    fi
     (crontab -l 2>/dev/null; echo "$CRON_TIME bash $SCRIPT_PATH") | crontab -
     echo "✅ Cronjob telah ditambahkan: $CRON_TIME bash $SCRIPT_PATH"
   else
